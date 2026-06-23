@@ -1,0 +1,166 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  RIDER
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+}
+
+enum ExpenseCategory {
+  FUEL
+  FOOD
+  PARKING
+  OTHER
+}
+
+enum ClosingStatus {
+  BALANCED
+  SURPLUS
+  DEFICIT
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  username  String   @unique
+  password  String
+  role      Role     @default(RIDER)
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dailyStocks   DailyStock[]
+  transactions  Transaction[]
+  expenses      Expense[]
+  dailyClosings DailyClosing[]
+
+  @@map("users")
+}
+
+model Product {
+  id        String   @id @default(uuid())
+  name      String
+  price     Int
+  unit      String   @default("cup")
+  hpp       Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  dailyStockItems  DailyStockItem[]
+  transactionItems TransactionItem[]
+
+  @@map("products")
+}
+
+model DailyStock {
+  id        String   @id @default(uuid())
+  riderId   String
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  rider        User              @relation(fields: [riderId], references: [id])
+  items        DailyStockItem[]
+  transactions Transaction[]
+  expenses     Expense[]
+  closing      DailyClosing?
+
+  @@unique([riderId, date])
+  @@map("daily_stocks")
+}
+
+model DailyStockItem {
+  id           String @id @default(uuid())
+  dailyStockId String
+  productId    String
+  initialQty   Int
+  soldQty      Int    @default(0)
+  remainingQty Int
+
+  dailyStock DailyStock @relation(fields: [dailyStockId], references: [id])
+  product    Product    @relation(fields: [productId], references: [id])
+
+  @@unique([dailyStockId, productId])
+  @@map("daily_stock_items")
+}
+
+model Transaction {
+  id              String        @id @default(uuid())
+  riderId         String
+  dailyStockId    String
+  transactionDate DateTime      @default(now())
+  paymentMethod   PaymentMethod
+  totalAmount     Int
+  createdAt       DateTime      @default(now())
+
+  rider      User              @relation(fields: [riderId], references: [id])
+  dailyStock DailyStock        @relation(fields: [dailyStockId], references: [id])
+  items      TransactionItem[]
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String @id @default(uuid())
+  transactionId String
+  productId     String
+  qty           Int
+  price         Int
+  subtotal      Int
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@map("transaction_items")
+}
+
+model Expense {
+  id           String          @id @default(uuid())
+  riderId      String
+  dailyStockId String
+  date         DateTime        @db.Date
+  category     ExpenseCategory
+  amount       Int
+  description  String?
+  createdAt    DateTime        @default(now())
+
+  rider      User       @relation(fields: [riderId], references: [id])
+  dailyStock DailyStock @relation(fields: [dailyStockId], references: [id])
+
+  @@map("expenses")
+}
+
+model DailyClosing {
+  id              String        @id @default(uuid())
+  riderId         String
+  dailyStockId    String        @unique
+  date            DateTime      @db.Date
+  totalSalesCash  Int
+  totalSalesQris  Int
+  totalExpenses   Int
+  expectedDeposit Int
+  actualDeposit   Int
+  difference      Int
+  notes           String?
+  status          ClosingStatus
+  closedAt        DateTime      @default(now())
+
+  rider      User       @relation(fields: [riderId], references: [id])
+  dailyStock DailyStock @relation(fields: [dailyStockId], references: [id])
+
+  @@unique([riderId, date])
+  @@map("daily_closings")
+}
