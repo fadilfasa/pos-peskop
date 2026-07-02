@@ -138,7 +138,7 @@ export default function RiderDashboardClient({
 
       {/* Quick Actions */}
       {data.hasStock && !data.isClosed && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+        <div style={{ display: "grid", gap: "16px", marginBottom: "24px" }} className="grid-cols-2 sm:grid-cols-4">
           {[
             { href: "/rider/stock", label: "Stok Awal" },
             { href: "/rider/sales", label: "Catat Penjualan" },
@@ -168,7 +168,7 @@ export default function RiderDashboardClient({
       )}
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gap: "16px", marginBottom: "24px" }} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <div style={{ ...card, padding: "20px" }}>
           <p style={{ fontSize: "11px", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>Total Penjualan</p>
           <p style={{ fontSize: "24px", fontWeight: 700, color: "#111827", margin: 0 }}>
@@ -193,7 +193,8 @@ export default function RiderDashboardClient({
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px" }}>
+      {/* Row 2 */}
+      <div style={{ display: "grid", gap: "24px" }} className="grid-cols-1 lg:grid-cols-3">
         {/* Stock Status */}
         {data.stockItems.length > 0 && (
           <div style={{ ...card, padding: "24px", minWidth: 0 }}>

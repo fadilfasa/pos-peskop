@@ -153,7 +153,7 @@ export default function AdminDashboardClient({
       </div>
 
       {/* Stats Cards — 4 kolom */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" }}>
+      <div style={{ display: "grid", gap: "16px", marginBottom: "20px" }} className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, i) => (
           <div key={i} style={{ ...card, padding: "24px" }}>
             <p style={{ fontSize: "11px", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px", margin: "0 0 10px" }}>
@@ -167,10 +167,10 @@ export default function AdminDashboardClient({
       </div>
 
       {/* Row 2: Chart (kiri, 2/3) + Status Rider (kanan, 1/3) */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", marginBottom: "20px" }}>
+      <div style={{ display: "grid", gap: "20px", marginBottom: "20px" }} className="grid-cols-1 lg:grid-cols-3">
 
         {/* Sales Chart */}
-        <div style={{ ...card, padding: "24px", display: "flex", flexDirection: "column" }}>
+      <div style={{ ...card, padding: "24px", display: "flex", flexDirection: "column" }} className="lg:col-span-2">
           <div style={{ marginBottom: "20px" }}>
             <p style={{ fontSize: "14px", fontWeight: 600, color: "#111827", margin: "0 0 4px" }}>Tren Penjualan</p>
           </div>
@@ -225,7 +225,7 @@ export default function AdminDashboardClient({
       </div>
 
       {/* Row 3: Data Penjualan Harian (kiri) + Penjualan Produk (kanan) */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+      <div style={{ display: "grid", gap: "20px" }} className="grid-cols-1 lg:grid-cols-2">
 
         {/* Data Penjualan Harian */}
         <div style={{ ...card, overflow: "hidden" }}>
