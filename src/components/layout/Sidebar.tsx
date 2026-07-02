@@ -100,10 +100,9 @@ export default function Sidebar({
         >
           <button
             onClick={toggleSidebar}
-            className="w-9 h-9 rounded-xl bg-brand-600 flex items-center justify-center flex-shrink-0 shadow-sm hover:opacity-90 transition-opacity"
+            className="w-10 h-10 flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity"
           >
-            <Coffee className="w-5 h-5 text-white" />
-            {/* <img src="/logo.png" alt="Logo" className="w-6 h-6 object-contain" /> */}
+            <img src="/peskop-logo.png" alt="Logo PESKOP" className="w-full h-auto object-contain" />
           </button>
           {!collapsed && (
             <span

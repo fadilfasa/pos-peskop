@@ -66,21 +66,17 @@ export default function LoginPage() {
       <div style={{ width: "100%", maxWidth: "420px" }}>
         {/* Logo Section */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <div
+          <img
+            src="/peskop-logo.png"
+            alt="Logo PESKOP"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "80px",
-              height: "80px",
-              borderRadius: "20px",
-              backgroundColor: "#dc2626",
-              boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.4)",
-              marginBottom: "20px",
+              display: "inline-block",
+              width: "100px",
+              height: "auto",
+              objectFit: "contain",
+              marginBottom: "16px",
             }}
-          >
-            <Coffee style={{ width: "40px", height: "40px", color: "#fff" }} />
-          </div>
+          />
           <h1
             style={{
               fontSize: "28px",
