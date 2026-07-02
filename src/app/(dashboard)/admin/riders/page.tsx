@@ -1,7 +1,11 @@
 import { getRiders } from "@/actions/riders";
+import { getAllFranchisesSimple } from "@/actions/franchises";
 import RidersClient from "./RidersClient";
 
 export default async function RidersPage() {
-  const riders = await getRiders();
-  return <RidersClient riders={riders} />;
+  const [riders, franchises] = await Promise.all([
+    getRiders(),
+    getAllFranchisesSimple(),
+  ]);
+  return <RidersClient riders={riders} franchises={franchises} />;
 }

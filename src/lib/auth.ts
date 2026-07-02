@@ -7,6 +7,7 @@ import type { Role } from "@prisma/client";
 declare module "next-auth" {
   interface User {
     role?: Role;
+    franchiseId?: string | null;
   }
   interface Session {
     user: {
@@ -14,6 +15,7 @@ declare module "next-auth" {
       name: string;
       username: string;
       role: Role;
+      franchiseId: string | null;
     };
   }
 }
@@ -22,10 +24,14 @@ declare module "@auth/core/jwt" {
   interface JWT {
     role?: Role;
     id?: string;
+    franchiseId?: string | null;
   }
 }
 
+import { authConfig } from "./auth.config";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "credentials",
@@ -54,30 +60,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           username: user.username,
           role: user.role,
+          franchiseId: user.franchiseId,
         };
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role;
-        token.id = user.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.role = token.role as Role;
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-  },
-  pages: {
-    signIn: "/login",
-  },
-  session: {
-    strategy: "jwt",
-  },
 });

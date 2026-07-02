@@ -161,8 +161,16 @@ export async function createAdminDailyStock(
   items: { productId: string; initialQty: number }[]
 ) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "FRANCHISE_OWNER")) {
     throw new Error("Unauthorized");
+  }
+
+  // Franchise owner: validate rider belongs to their franchise
+  if (session.user.role === "FRANCHISE_OWNER") {
+    const rider = await prisma.user.findUnique({ where: { id: riderId } });
+    if (!rider || rider.franchiseId !== session.user.franchiseId) {
+      throw new Error("Unauthorized: rider bukan milik franchise Anda");
+    }
   }
 
   const today = getLocalTodayUTC();
@@ -197,6 +205,7 @@ export async function createAdminDailyStock(
   });
 
   revalidatePath("/admin/stocks");
+  revalidatePath("/franchise/stocks");
 }
 
 export async function addAdminAdditionalStock(
@@ -204,17 +213,24 @@ export async function addAdminAdditionalStock(
   items: { productId: string; addQty: number }[]
 ) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMIN") {
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "FRANCHISE_OWNER")) {
     throw new Error("Unauthorized");
   }
 
   const dailyStock = await prisma.dailyStock.findUnique({
     where: { id: dailyStockId },
-    include: { closing: true }
+    include: { closing: true, rider: { select: { franchiseId: true } } }
   });
 
   if (!dailyStock) throw new Error("Data stok hari ini tidak ditemukan");
   if (dailyStock.closing) throw new Error("Closing sudah dilakukan, tidak bisa menambah stok");
+
+  // Franchise owner: validate rider belongs to their franchise
+  if (session.user.role === "FRANCHISE_OWNER") {
+    if (dailyStock.rider.franchiseId !== session.user.franchiseId) {
+      throw new Error("Unauthorized: rider bukan milik franchise Anda");
+    }
+  }
 
   // Loop through items and update/create
   for (const item of items) {
@@ -251,4 +267,5 @@ export async function addAdminAdditionalStock(
   }
 
   revalidatePath("/admin/stocks");
+  revalidatePath("/franchise/stocks");
 }

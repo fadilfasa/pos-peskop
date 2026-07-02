@@ -1,5 +1,8 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 import { NextResponse } from "next/server";
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -9,7 +12,10 @@ export default auth((req) => {
   // Public routes
   if (pathname === "/login" || pathname === "/") {
     if (isLoggedIn) {
-      const redirectUrl = role === "ADMIN" ? "/admin" : "/rider";
+      const redirectUrl =
+        role === "ADMIN" ? "/admin" :
+        role === "FRANCHISE_OWNER" ? "/franchise" :
+        "/rider";
       return NextResponse.redirect(new URL(redirectUrl, req.url));
     }
     return NextResponse.next();
@@ -20,14 +26,22 @@ export default auth((req) => {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Admin routes
+  // Admin routes — only ADMIN
   if (pathname.startsWith("/admin") && role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/rider", req.url));
+    const redirectUrl = role === "FRANCHISE_OWNER" ? "/franchise" : "/rider";
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 
-  // Rider routes
+  // Franchise routes — only FRANCHISE_OWNER
+  if (pathname.startsWith("/franchise") && role !== "FRANCHISE_OWNER") {
+    const redirectUrl = role === "ADMIN" ? "/admin" : "/rider";
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
+  }
+
+  // Rider routes — only RIDER
   if (pathname.startsWith("/rider") && role !== "RIDER") {
-    return NextResponse.redirect(new URL("/admin", req.url));
+    const redirectUrl = role === "ADMIN" ? "/admin" : "/franchise";
+    return NextResponse.redirect(new URL(redirectUrl, req.url));
   }
 
   return NextResponse.next();

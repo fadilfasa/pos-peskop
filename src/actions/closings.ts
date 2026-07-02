@@ -91,6 +91,7 @@ export async function getClosingHistory(filters?: {
   riderId?: string;
   startDate?: string;
   endDate?: string;
+  franchiseId?: string;
 }) {
   const session = await auth();
   if (!session) throw new Error("Unauthorized");
@@ -99,8 +100,33 @@ export async function getClosingHistory(filters?: {
 
   if (session.user.role === "RIDER") {
     where.riderId = session.user.id;
+  } else if (session.user.role === "FRANCHISE_OWNER") {
+    // Franchise owner: scope to their franchise's riders
+    const ridersInFranchise = await prisma.user.findMany({
+      where: { role: "RIDER", isActive: true, franchiseId: session.user.franchiseId },
+      select: { id: true },
+    });
+    const riderIds = ridersInFranchise.map(r => r.id);
+    if (filters?.riderId && riderIds.includes(filters.riderId)) {
+      where.riderId = filters.riderId;
+    } else {
+      where.riderId = { in: riderIds };
+    }
   } else if (filters?.riderId) {
     where.riderId = filters.riderId;
+  } else if (filters?.franchiseId) {
+    // Admin filtering by franchise
+    const franchiseRiderWhere: Record<string, unknown> = { role: "RIDER", isActive: true };
+    if (filters.franchiseId === "pusat") {
+      franchiseRiderWhere.franchiseId = null;
+    } else {
+      franchiseRiderWhere.franchiseId = filters.franchiseId;
+    }
+    const ridersInFranchise = await prisma.user.findMany({
+      where: franchiseRiderWhere,
+      select: { id: true },
+    });
+    where.riderId = { in: ridersInFranchise.map(r => r.id) };
   }
 
   if (filters?.startDate || filters?.endDate) {

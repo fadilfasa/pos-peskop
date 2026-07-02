@@ -4,9 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getLocalTodayUTC, getLogicalToday } from "@/lib/utils";
 
-export async function getAdminDashboard(period: "today" | "week" | "month" | "all" = "today") {
+// Helper to build rider filter based on franchise scope
+function buildRiderFilter(franchiseId?: string | null) {
+  if (franchiseId === undefined) return {};
+  return { franchiseId };
+}
+
+export async function getAdminDashboard(
+  period: "today" | "week" | "month" | "all" = "today",
+  franchiseFilter?: string
+) {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") throw new Error("Unauthorized");
+
+  // Determine franchise scope
+  let franchiseScope: string | null | undefined = undefined; // undefined = all
+  if (franchiseFilter === "pusat") {
+    franchiseScope = null;
+  } else if (franchiseFilter && franchiseFilter !== "all") {
+    franchiseScope = franchiseFilter;
+  }
+
+  const riderWhere = franchiseScope !== undefined ? { franchiseId: franchiseScope } : {};
 
   const now = getLogicalToday();
   const todayStart = new Date(now);
@@ -27,10 +46,22 @@ export async function getAdminDashboard(period: "today" | "week" | "month" | "al
     startDate = new Date(2020, 0, 1);
   }
 
+  // Get rider IDs in scope
+  const ridersInScope = franchiseScope !== undefined
+    ? await prisma.user.findMany({
+        where: { role: "RIDER", isActive: true, ...riderWhere },
+        select: { id: true },
+      })
+    : null;
+  const riderIds = ridersInScope ? ridersInScope.map(r => r.id) : undefined;
+
+  const riderIdFilter = riderIds ? { riderId: { in: riderIds } } : {};
+
   // Transactions
   const transactions = await prisma.transaction.findMany({
     where: {
       createdAt: { gte: startDate, lt: endDate },
+      ...riderIdFilter,
     },
   });
 
@@ -45,16 +76,22 @@ export async function getAdminDashboard(period: "today" | "week" | "month" | "al
 
   // Active riders
   const activeRiders = await prisma.user.count({
-    where: { role: "RIDER", isActive: true },
+    where: { role: "RIDER", isActive: true, ...riderWhere },
   });
 
   // Riders stocked & closed (Always for today)
   const ridersStockedPeriod = await prisma.dailyStock.count({
-    where: { date: { gte: localTodayStartUTC, lt: localTodayEndUTC } },
+    where: {
+      date: { gte: localTodayStartUTC, lt: localTodayEndUTC },
+      ...riderIdFilter,
+    },
   });
 
   const ridersClosedPeriod = await prisma.dailyClosing.count({
-    where: { date: { gte: localTodayStartUTC, lt: localTodayEndUTC } },
+    where: {
+      date: { gte: localTodayStartUTC, lt: localTodayEndUTC },
+      ...riderIdFilter,
+    },
   });
 
   // Chart data
@@ -93,7 +130,7 @@ export async function getAdminDashboard(period: "today" | "week" | "month" | "al
       else qEnd.setDate(qEnd.getDate() + 1);
 
       const txs = await prisma.transaction.findMany({
-        where: { createdAt: { gte: qStart, lt: qEnd } },
+        where: { createdAt: { gte: qStart, lt: qEnd }, ...riderIdFilter },
         select: { totalAmount: true },
       });
       const total = txs.reduce((sum, t) => sum + t.totalAmount, 0);
@@ -108,7 +145,10 @@ export async function getAdminDashboard(period: "today" | "week" | "month" | "al
 
   // Daily Riders (Always for today)
   const ridersWithStock = await prisma.dailyStock.findMany({
-    where: { date: { gte: localTodayStartUTC, lt: localTodayEndUTC } },
+    where: {
+      date: { gte: localTodayStartUTC, lt: localTodayEndUTC },
+      ...riderIdFilter,
+    },
     include: {
       rider: { select: { id: true, name: true } },
       items: { include: { product: true } },
@@ -170,20 +210,237 @@ export async function getAdminDashboard(period: "today" | "week" | "month" | "al
 
   // Expenses
   const expenses = await prisma.expense.findMany({
-    where: { date: { gte: localStartDateUTC, lt: localEndDateUTC } },
+    where: {
+      date: { gte: localStartDateUTC, lt: localEndDateUTC },
+      ...riderIdFilter,
+    },
   });
   const totalExpensesPeriod = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   // Product sales
   const productSalesRaw = await prisma.transactionItem.groupBy({
     by: ["productId"],
-    where: { transaction: { createdAt: { gte: startDate, lt: endDate } } },
+    where: {
+      transaction: {
+        createdAt: { gte: startDate, lt: endDate },
+        ...(riderIds ? { riderId: { in: riderIds } } : {}),
+      },
+    },
     _sum: { qty: true, subtotal: true },
     orderBy: { _sum: { qty: "desc" } },
   });
 
   const products = await prisma.product.findMany({ select: { id: true, name: true, unit: true } });
   const productMap = Object.fromEntries(products.map((p) => [p.id, `${p.name} (${p.unit})`]));
+
+  const productSales = productSalesRaw.map((ps) => ({
+    name: productMap[ps.productId] || "Unknown",
+    qty: ps._sum.qty || 0,
+    subtotal: ps._sum.subtotal || 0,
+  }));
+
+  return {
+    totalSalesToday: totalSalesPeriod,
+    totalTransactionsToday: totalTransactionsPeriod,
+    totalExpensesToday: totalExpensesPeriod,
+    activeRiders,
+    ridersStockedToday: ridersStockedPeriod,
+    ridersClosedToday: ridersClosedPeriod,
+    last7Days: chartData,
+    dailyRiders,
+    productSales,
+  };
+}
+
+export async function getFranchiseDashboard(
+  period: "today" | "week" | "month" | "all" = "today"
+) {
+  const session = await auth();
+  if (!session || session.user.role !== "FRANCHISE_OWNER") throw new Error("Unauthorized");
+
+  const franchiseId = session.user.franchiseId;
+
+  const now = getLogicalToday();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
+  let startDate = new Date(todayStart);
+  const endDate = new Date(todayEnd);
+
+  if (period === "week") {
+    const day = startDate.getDay();
+    const diff = startDate.getDate() - day + (day === 0 ? -6 : 1);
+    startDate = new Date(startDate.setDate(diff));
+  } else if (period === "month") {
+    startDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+  } else if (period === "all") {
+    startDate = new Date(2020, 0, 1);
+  }
+
+  // Get rider IDs in this franchise
+  const ridersInFranchise = await prisma.user.findMany({
+    where: { role: "RIDER", isActive: true, franchiseId },
+    select: { id: true },
+  });
+  const riderIds = ridersInFranchise.map(r => r.id);
+  const riderIdFilter = riderIds.length > 0 ? { riderId: { in: riderIds } } : { riderId: "__none__" };
+
+  // Transactions
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      createdAt: { gte: startDate, lt: endDate },
+      ...riderIdFilter,
+    },
+  });
+
+  const totalSalesPeriod = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+  const totalTransactionsPeriod = transactions.length;
+
+  const localTodayStartUTC = new Date(Date.UTC(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate()));
+  const localTodayEndUTC = new Date(Date.UTC(todayEnd.getFullYear(), todayEnd.getMonth(), todayEnd.getDate()));
+  const localStartDateUTC = new Date(Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()));
+  const localEndDateUTC = new Date(Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()));
+
+  // Active riders
+  const activeRiders = riderIds.length;
+
+  // Riders stocked & closed (today)
+  const ridersStockedPeriod = riderIds.length > 0 ? await prisma.dailyStock.count({
+    where: { date: { gte: localTodayStartUTC, lt: localTodayEndUTC }, riderId: { in: riderIds } },
+  }) : 0;
+
+  const ridersClosedPeriod = riderIds.length > 0 ? await prisma.dailyClosing.count({
+    where: { date: { gte: localTodayStartUTC, lt: localTodayEndUTC }, riderId: { in: riderIds } },
+  }) : 0;
+
+  // Chart data
+  const chartPoints = [];
+  if (period === "today") {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      chartPoints.push({ date: d, label: new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "numeric" }).format(d), isMonth: false });
+    }
+  } else if (period === "week") {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startDate);
+      d.setDate(d.getDate() + i);
+      chartPoints.push({ date: d, label: new Intl.DateTimeFormat("id-ID", { weekday: "short", day: "numeric" }).format(d), isMonth: false });
+    }
+  } else if (period === "month") {
+    const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(startDate.getFullYear(), startDate.getMonth(), i);
+      chartPoints.push({ date: d, label: String(i), isMonth: false });
+    }
+  } else if (period === "all") {
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      chartPoints.push({ date: d, label: new Intl.DateTimeFormat("id-ID", { month: "short", year: "2-digit" }).format(d), isMonth: true });
+    }
+  }
+
+  const chartData = await Promise.all(
+    chartPoints.map(async (item) => {
+      const qStart = item.date;
+      const qEnd = new Date(qStart);
+      if (item.isMonth) qEnd.setMonth(qEnd.getMonth() + 1);
+      else qEnd.setDate(qEnd.getDate() + 1);
+
+      if (riderIds.length === 0) {
+        return { date: item.date.toISOString().split("T")[0], label: item.label, total: 0, count: 0 };
+      }
+
+      const txs = await prisma.transaction.findMany({
+        where: { createdAt: { gte: qStart, lt: qEnd }, riderId: { in: riderIds } },
+        select: { totalAmount: true },
+      });
+      const total = txs.reduce((sum, t) => sum + t.totalAmount, 0);
+      return { date: item.date.toISOString().split("T")[0], label: item.label, total, count: txs.length };
+    })
+  );
+
+  // Daily Riders (today)
+  const ridersWithStock = riderIds.length > 0 ? await prisma.dailyStock.findMany({
+    where: {
+      date: { gte: localTodayStartUTC, lt: localTodayEndUTC },
+      riderId: { in: riderIds },
+    },
+    include: {
+      rider: { select: { id: true, name: true } },
+      items: { include: { product: true } },
+      transactions: { include: { items: true } },
+      expenses: true,
+    },
+  }) : [];
+
+  const riderStatsMap = new Map();
+  for (const ds of ridersWithStock) {
+    const riderId = ds.rider.id;
+    if (!riderStatsMap.has(riderId)) {
+      riderStatsMap.set(riderId, {
+        id: riderId,
+        name: ds.rider.name,
+        stokAwal: 0,
+        terjual: 0,
+        totalPendapatan: 0,
+        totalExpenses: 0,
+        cashAmount: 0,
+        qrisAmount: 0,
+        productsMap: new Map(),
+      });
+    }
+    const stat = riderStatsMap.get(riderId);
+    for (const item of ds.items) {
+      stat.stokAwal += item.initialQty;
+      if (!stat.productsMap.has(item.productId)) {
+        stat.productsMap.set(item.productId, { name: item.product.name, unit: item.product.unit || "Lainnya", stokAwal: 0, terjual: 0 });
+      }
+      stat.productsMap.get(item.productId).stokAwal += item.initialQty;
+    }
+    for (const tx of ds.transactions) {
+      stat.totalPendapatan += tx.totalAmount;
+      if (tx.paymentMethod === "CASH") stat.cashAmount += tx.totalAmount;
+      if (tx.paymentMethod === "QRIS") stat.qrisAmount += tx.totalAmount;
+      for (const item of tx.items) {
+        stat.terjual += item.qty;
+        if (stat.productsMap.has(item.productId)) {
+          stat.productsMap.get(item.productId).terjual += item.qty;
+        } else {
+          stat.productsMap.set(item.productId, { name: "Produk Unknown", unit: "Lainnya", stokAwal: 0, terjual: item.qty });
+        }
+      }
+    }
+    stat.totalExpenses += ds.expenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
+  }
+
+  const dailyRiders = Array.from(riderStatsMap.values()).map(stat => {
+    const { productsMap, ...rest } = stat;
+    return {
+      ...rest,
+      products: Array.from(productsMap.values()) as { name: string; unit: string; stokAwal: number; terjual: number }[],
+    };
+  }).sort((a, b) => b.totalPendapatan - a.totalPendapatan);
+
+  // Expenses
+  const expensesData = riderIds.length > 0 ? await prisma.expense.findMany({
+    where: { date: { gte: localStartDateUTC, lt: localEndDateUTC }, riderId: { in: riderIds } },
+  }) : [];
+  const totalExpensesPeriod = expensesData.reduce((sum, e) => sum + e.amount, 0);
+
+  // Product sales
+  const productSalesRaw = riderIds.length > 0 ? await prisma.transactionItem.groupBy({
+    by: ["productId"],
+    where: { transaction: { createdAt: { gte: startDate, lt: endDate }, riderId: { in: riderIds } } },
+    _sum: { qty: true, subtotal: true },
+    orderBy: { _sum: { qty: "desc" } },
+  }) : [];
+
+  const allProducts = await prisma.product.findMany({ select: { id: true, name: true, unit: true } });
+  const productMap = Object.fromEntries(allProducts.map((p) => [p.id, `${p.name} (${p.unit})`]));
 
   const productSales = productSalesRaw.map((ps) => ({
     name: productMap[ps.productId] || "Unknown",
@@ -252,8 +509,6 @@ export async function getRiderDashboard() {
     0
   );
 
-
-
   return {
     hasStock: !!dailyStock,
     isClosed: !!dailyStock?.closing,
@@ -271,14 +526,47 @@ export async function getSalesReport(filters?: {
   startDate?: string;
   endDate?: string;
   productUnit?: string;
+  franchiseId?: string;
 }) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMIN") throw new Error("Unauthorized");
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "FRANCHISE_OWNER")) {
+    throw new Error("Unauthorized");
+  }
 
   const where: Record<string, unknown> = {};
 
   if (filters?.riderId) {
     where.riderId = filters.riderId;
+  }
+
+  // Franchise owner: scope to their franchise's riders
+  if (session.user.role === "FRANCHISE_OWNER") {
+    const ridersInFranchise = await prisma.user.findMany({
+      where: { role: "RIDER", isActive: true, franchiseId: session.user.franchiseId },
+      select: { id: true },
+    });
+    const riderIds = ridersInFranchise.map(r => r.id);
+    if (filters?.riderId) {
+      // Validate rider belongs to franchise
+      if (!riderIds.includes(filters.riderId)) {
+        throw new Error("Unauthorized: rider bukan milik franchise Anda");
+      }
+    } else {
+      where.riderId = { in: riderIds };
+    }
+  } else if (filters?.franchiseId) {
+    // Admin filtering by franchise
+    const franchiseRiderWhere: Record<string, unknown> = { role: "RIDER", isActive: true };
+    if (filters.franchiseId === "pusat") {
+      franchiseRiderWhere.franchiseId = null;
+    } else {
+      franchiseRiderWhere.franchiseId = filters.franchiseId;
+    }
+    const ridersInFranchise = await prisma.user.findMany({
+      where: franchiseRiderWhere,
+      select: { id: true },
+    });
+    where.riderId = { in: ridersInFranchise.map(r => r.id) };
   }
 
   if (filters?.startDate || filters?.endDate) {
@@ -342,12 +630,27 @@ export async function getSalesReport(filters?: {
 export async function getRiderPerformance(filters?: {
   startDate?: string;
   endDate?: string;
+  franchiseId?: string;
 }) {
   const session = await auth();
-  if (!session || session.user.role !== "ADMIN") throw new Error("Unauthorized");
+  if (!session || (session.user.role !== "ADMIN" && session.user.role !== "FRANCHISE_OWNER")) {
+    throw new Error("Unauthorized");
+  }
+
+  // Build rider filter based on role
+  const riderWhere: Record<string, unknown> = { role: "RIDER", isActive: true };
+  if (session.user.role === "FRANCHISE_OWNER") {
+    riderWhere.franchiseId = session.user.franchiseId;
+  } else if (filters?.franchiseId) {
+    if (filters.franchiseId === "pusat") {
+      riderWhere.franchiseId = null;
+    } else {
+      riderWhere.franchiseId = filters.franchiseId;
+    }
+  }
 
   const riders = await prisma.user.findMany({
-    where: { role: "RIDER", isActive: true },
+    where: riderWhere,
     select: { id: true, name: true, username: true },
   });
 

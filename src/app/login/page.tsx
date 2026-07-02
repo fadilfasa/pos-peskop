@@ -132,7 +132,7 @@ export default function LoginPage() {
 
             <div>
               <label htmlFor="username" style={{ display: "block", fontSize: "14px", fontWeight: 500, color: "#374151", marginBottom: "8px" }}>
-                Username / Rider ID
+                Username / Rider ID / Nama Franchise
               </label>
               <input
                 id="username"
@@ -140,7 +140,7 @@ export default function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 style={inputStyle}
-                placeholder="Masukkan Username atau ID"
+                placeholder="Masukkan Username, ID, atau Nama Franchise"
                 required
                 autoComplete="username"
                 onFocus={(e) => {

@@ -73,16 +73,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-export default function AdminDashboardClient({
+export default function FranchiseDashboardClient({
   initialData: data,
   period,
-  franchises,
-  franchiseFilter,
 }: {
   initialData: DashboardData;
   period: string;
-  franchises: { id: string; name: string }[];
-  franchiseFilter: string;
 }) {
   const router = useRouter();
   const [expandedRider, setExpandedRider] = useState<string | null>(null);
@@ -108,10 +104,10 @@ export default function AdminDashboardClient({
       <div style={{ marginBottom: "28px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "16px" }}>
         <div>
           <h1 style={{ fontSize: "24px", fontWeight: 700, color: "#111827", letterSpacing: "-0.025em", margin: 0 }}>
-            Dashboard
+            Dashboard Franchise
           </h1>
           <p style={{ fontSize: "14px", color: "#9CA3AF", marginTop: "4px", marginBottom: 0 }}>
-            Overview penjualan dan performa rider
+            Overview penjualan dan performa rider Anda
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -120,12 +116,7 @@ export default function AdminDashboardClient({
           </div>
           <select
             value={period}
-            onChange={(e) => {
-              const params = new URLSearchParams();
-              params.set("period", e.target.value);
-              if (franchiseFilter && franchiseFilter !== "all") params.set("franchise", franchiseFilter);
-              router.push(`?${params.toString()}`);
-            }}
+            onChange={(e) => router.push(`?period=${e.target.value}`)}
             style={{ height: "40px", borderRadius: "12px", border: "1px solid #E5E7EB", padding: "0 12px", fontSize: "14px", color: "#111827", backgroundColor: "#fff", outline: "none", minWidth: "140px", cursor: "pointer" }}
           >
             <option value="today">Hari Ini</option>
@@ -133,26 +124,10 @@ export default function AdminDashboardClient({
             <option value="month">Bulan Ini</option>
             <option value="all">Keseluruhan</option>
           </select>
-          <select
-            value={franchiseFilter}
-            onChange={(e) => {
-              const params = new URLSearchParams();
-              params.set("period", period);
-              if (e.target.value !== "all") params.set("franchise", e.target.value);
-              router.push(`?${params.toString()}`);
-            }}
-            style={{ height: "40px", borderRadius: "12px", border: "1px solid #E5E7EB", padding: "0 12px", fontSize: "14px", color: "#111827", backgroundColor: "#fff", outline: "none", minWidth: "160px", cursor: "pointer" }}
-          >
-            <option value="all">Semua Franchise</option>
-            <option value="pusat">Pusat (Milik Sendiri)</option>
-            {franchises.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
         </div>
       </div>
 
-      {/* Stats Cards — 4 kolom */}
+      {/* Stats Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" }}>
         {stats.map((stat, i) => (
           <div key={i} style={{ ...card, padding: "24px" }}>
@@ -166,9 +141,8 @@ export default function AdminDashboardClient({
         ))}
       </div>
 
-      {/* Row 2: Chart (kiri, 2/3) + Status Rider (kanan, 1/3) */}
+      {/* Chart + Status Rider */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", marginBottom: "20px" }}>
-
         {/* Sales Chart */}
         <div style={{ ...card, padding: "24px", display: "flex", flexDirection: "column" }}>
           <div style={{ marginBottom: "20px" }}>
@@ -224,9 +198,8 @@ export default function AdminDashboardClient({
         </div>
       </div>
 
-      {/* Row 3: Data Penjualan Harian (kiri) + Penjualan Produk (kanan) */}
+      {/* Daily Riders + Product Sales */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-
         {/* Data Penjualan Harian */}
         <div style={{ ...card, overflow: "hidden" }}>
           <div style={{ padding: "20px 24px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

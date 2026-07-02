@@ -5,12 +5,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
   ADMIN
+  FRANCHISE_OWNER
   RIDER
 }
 
@@ -33,16 +35,19 @@ enum ClosingStatus {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  username  String   @unique
-  password  String
-  role      Role     @default(RIDER)
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  username    String   @unique
+  password    String
+  role        Role     @default(RIDER)
+  phone       String?
+  nik         String?  @unique
+  isActive    Boolean  @default(true)
+  franchiseId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  franchise     Franchise? @relation(fields: [franchiseId], references: [id])
   dailyStocks   DailyStock[]
   transactions  Transaction[]
   expenses      Expense[]
@@ -163,4 +168,29 @@ model DailyClosing {
 
   @@unique([riderId, date])
   @@map("daily_closings")
+}
+
+model RawMaterial {
+  id        String   @id @default(uuid())
+  merk      String   @unique
+  stockAwal Int      @default(0)
+  tambahan  Int      @default(0)
+  terpakai  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("raw_materials")
+}
+
+model Franchise {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  location  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("franchises")
 }

@@ -16,17 +16,29 @@ import {
   Receipt,
   ClipboardCheck,
   ClipboardList,
+  Database,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/admins", label: "Admin", icon: UserCog },
+  { href: "/admin/franchises", label: "Franchise", icon: Store },
   { href: "/admin/riders", label: "Rider", icon: Bike },
   { href: "/admin/products", label: "Produk", icon: Package },
   { href: "/admin/stocks", label: "Stok Rider", icon: ClipboardList },
+  { href: "/admin/raw-materials", label: "Stok Bahan Baku", icon: Database },
   { href: "/admin/reports/sales", label: "Laporan Penjualan", icon: BarChart3 },
   { href: "/admin/closings", label: "Riwayat Closing", icon: History },
+];
+
+const franchiseLinks = [
+  { href: "/franchise", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/franchise/riders", label: "Rider", icon: Bike },
+  { href: "/franchise/stocks", label: "Stok Rider", icon: ClipboardList },
+  { href: "/franchise/reports/sales", label: "Laporan Penjualan", icon: BarChart3 },
+  { href: "/franchise/closings", label: "Riwayat Closing", icon: History },
 ];
 
 const riderLinks = [
@@ -51,8 +63,8 @@ export default function Sidebar({
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const isAdmin = session?.user?.role === "ADMIN";
-  const links = isAdmin ? adminLinks : riderLinks;
+  const role = session?.user?.role;
+  const links = role === "ADMIN" ? adminLinks : role === "FRANCHISE_OWNER" ? franchiseLinks : riderLinks;
 
   return (
     <>
@@ -117,6 +129,7 @@ export default function Sidebar({
                 pathname === link.href ||
                 (link.href !== "/admin" &&
                   link.href !== "/rider" &&
+                  link.href !== "/franchise" &&
                   pathname.startsWith(link.href));
 
               return (

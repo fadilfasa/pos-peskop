@@ -38,12 +38,19 @@ type Rider = {
   name: string;
 };
 
+type Franchise = {
+  id: string;
+  name: string;
+};
+
 export default function ClosingsClient({
   initialClosings,
   riders,
+  franchises = [],
 }: {
   initialClosings: Closing[];
   riders: Rider[];
+  franchises?: Franchise[];
 }) {
   const [closings, setClosings] = useState(initialClosings);
   const [filters, setFilters] = useState({
@@ -51,6 +58,7 @@ export default function ClosingsClient({
     startDate: "",
     endDate: "",
     productUnit: "",
+    franchiseId: "",
   });
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -62,6 +70,7 @@ export default function ClosingsClient({
         riderId: filters.riderId || undefined,
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
+        franchiseId: filters.franchiseId || undefined,
       });
       setClosings(result);
     } finally {
@@ -98,6 +107,16 @@ export default function ClosingsClient({
     width: "100%",
   };
 
+  const selectStyle = {
+    ...inputStyle,
+    appearance: "none" as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 12px center",
+    paddingRight: "32px",
+    cursor: "pointer",
+  };
+
   const btnStyle = (bg: string) => ({
     backgroundColor: bg,
     color: "#fff",
@@ -131,10 +150,26 @@ export default function ClosingsClient({
           Filter
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+          {franchises.length > 0 && (
+            <div>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: "#374151", marginBottom: "8px" }}>Kepemilikan</label>
+              <select
+                style={selectStyle}
+                value={filters.franchiseId}
+                onChange={(e) => setFilters({ ...filters, franchiseId: e.target.value, riderId: "" })}
+              >
+                <option value="">Semua</option>
+                <option value="pusat">Pusat</option>
+                {franchises.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: "#374151", marginBottom: "8px" }}>Rider</label>
             <select
-              style={inputStyle}
+              style={selectStyle}
               value={filters.riderId}
               onChange={(e) => setFilters({ ...filters, riderId: e.target.value })}
             >

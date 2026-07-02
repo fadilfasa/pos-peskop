@@ -84,3 +84,51 @@ export async function getTodayTransactions() {
     orderBy: { createdAt: "desc" },
   });
 }
+
+export async function deleteTransaction(id: string) {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    throw new Error("Unauthorized");
+  }
+
+  // Fetch the transaction with its items
+  const transaction = await prisma.transaction.findUnique({
+    where: { id },
+    include: { items: true },
+  });
+
+  if (!transaction) {
+    throw new Error("Transaksi tidak ditemukan");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Restore stock quantities
+    for (const item of transaction.items) {
+      await tx.dailyStockItem.update({
+        where: {
+          dailyStockId_productId: {
+            dailyStockId: transaction.dailyStockId,
+            productId: item.productId,
+          },
+        },
+        data: {
+          soldQty: { decrement: item.qty },
+          remainingQty: { increment: item.qty },
+        },
+      });
+    }
+
+    // Delete transaction items
+    await tx.transactionItem.deleteMany({
+      where: { transactionId: id },
+    });
+
+    // Delete the transaction
+    await tx.transaction.delete({
+      where: { id },
+    });
+  });
+
+  revalidatePath("/admin/reports/sales");
+  revalidatePath("/admin", "layout");
+}

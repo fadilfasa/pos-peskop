@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { getSalesReport } from "@/actions/dashboard";
+import { deleteTransaction } from "@/actions/transactions";
 import {
   formatCurrency,
   formatDateTime,
   getPaymentMethodLabel,
 } from "@/lib/utils";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Trash2 } from "lucide-react";
 
 type Transaction = {
   id: string;
@@ -38,12 +39,19 @@ type Rider = {
   username: string;
 };
 
+type Franchise = {
+  id: string;
+  name: string;
+};
+
 export default function SalesReportClient({
   initialReport,
   riders,
+  franchises = [],
 }: {
   initialReport: { transactions: Transaction[]; summary: Summary };
   riders: Rider[];
+  franchises?: Franchise[];
 }) {
   const [report, setReport] = useState(initialReport);
   const [filters, setFilters] = useState({
@@ -51,6 +59,7 @@ export default function SalesReportClient({
     startDate: "",
     endDate: "",
     productUnit: "",
+    franchiseId: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -62,10 +71,23 @@ export default function SalesReportClient({
         startDate: filters.startDate || undefined,
         endDate: filters.endDate || undefined,
         productUnit: filters.productUnit || undefined,
+        franchiseId: filters.franchiseId || undefined,
       });
       setReport(result);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus transaksi ini? Stok akan dikembalikan otomatis.")) return;
+    
+    try {
+      await deleteTransaction(id);
+      // Refresh report data
+      await handleFilter();
+    } catch (error: any) {
+      alert(error.message || "Gagal menghapus transaksi");
     }
   };
 
@@ -107,6 +129,16 @@ export default function SalesReportClient({
     width: "100%",
   };
 
+  const selectStyle = {
+    ...inputStyle,
+    appearance: "none" as const,
+    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+    backgroundRepeat: "no-repeat",
+    backgroundPosition: "right 12px center",
+    paddingRight: "32px",
+    cursor: "pointer",
+  };
+
   const btnStyle = (bg: string) => ({
     backgroundColor: bg,
     color: "#fff",
@@ -141,10 +173,26 @@ export default function SalesReportClient({
           Filter
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+          {franchises.length > 0 && (
+            <div>
+              <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: "#374151", marginBottom: "8px" }}>Kepemilikan</label>
+              <select
+                style={selectStyle}
+                value={filters.franchiseId}
+                onChange={(e) => setFilters({ ...filters, franchiseId: e.target.value, riderId: "" })}
+              >
+                <option value="">Semua</option>
+                <option value="pusat">Pusat</option>
+                {franchises.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label style={{ display: "block", fontSize: "13px", fontWeight: 500, color: "#374151", marginBottom: "8px" }}>Rider</label>
             <select
-              style={inputStyle}
+              style={selectStyle}
               value={filters.riderId}
               onChange={(e) => setFilters({ ...filters, riderId: e.target.value })}
             >
@@ -221,8 +269,8 @@ export default function SalesReportClient({
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #F3F4F6" }}>
-                {["Waktu", "Rider", "Item", "Metode Bayar", "Total"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", fontSize: "11px", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", padding: "14px 24px", whiteSpace: "nowrap" }}>
+                {["Waktu", "Rider", "Item", "Metode Bayar", "Total", "Aksi"].map((h) => (
+                  <th key={h} style={{ textAlign: h === "Aksi" ? "center" : "left", fontSize: "11px", fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", padding: "14px 24px", whiteSpace: "nowrap" }}>
                     {h}
                   </th>
                 ))}
@@ -247,11 +295,33 @@ export default function SalesReportClient({
                     </span>
                   </td>
                   <td style={{ padding: "16px 24px", fontSize: "14px", fontWeight: 600, color: "#059669" }}>{formatCurrency(t.totalAmount)}</td>
+                  <td style={{ padding: "16px 24px", textAlign: "center" }}>
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "8px",
+                        color: "#EF4444",
+                        borderRadius: "8px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#FEE2E2")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                      title="Hapus Transaksi"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
                 </tr>
               ))}
               {report.transactions.length === 0 && (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 24px", textAlign: "center" }}>
                       <div style={{ width: "48px", height: "48px", borderRadius: "16px", backgroundColor: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "16px" }}>
                         <BarChart3 style={{ width: "24px", height: "24px", color: "#9CA3AF" }} />
