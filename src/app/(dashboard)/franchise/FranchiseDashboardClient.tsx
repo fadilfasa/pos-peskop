@@ -110,7 +110,7 @@ export default function FranchiseDashboardClient({
             Overview penjualan dan performa rider Anda
           </p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <div style={{ fontSize: "14px", color: "#9CA3AF", backgroundColor: "#fff", padding: "8px 14px", borderRadius: "12px", border: "1px solid #F3F4F6" }}>
             {new Intl.DateTimeFormat("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date())}
           </div>
