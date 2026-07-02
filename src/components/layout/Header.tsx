@@ -14,7 +14,7 @@ export default function Header({
   const [showProfile, setShowProfile] = useState(false);
 
   return (
-    <header className="h-[72px] bg-white border-b border-surface-200 flex items-center justify-between px-4 lg:px-8 flex-shrink-0 z-30 shadow-sm">
+    <header className="w-full max-w-full box-border h-[72px] bg-white border-b border-surface-200 flex items-center justify-between px-6 lg:px-8 flex-shrink-0 z-30 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
         <button 
           onClick={toggleMobile} 
