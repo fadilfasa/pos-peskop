@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import AdminStocksClient from "@/app/(dashboard)/admin/stocks/AdminStocksClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function FranchiseStocksPage() {
   const session = await auth();
   if (!session || session.user.role !== "FRANCHISE_OWNER") {

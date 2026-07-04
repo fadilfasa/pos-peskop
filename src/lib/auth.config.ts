@@ -25,5 +25,6 @@ export const authConfig = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 4 * 60 * 60, // 8 jam — session auto-expire setelah 8 jam
   },
 } satisfies NextAuthConfig;

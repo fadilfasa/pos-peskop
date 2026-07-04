@@ -71,6 +71,16 @@ export async function deleteProduct(id: string) {
   }
 
   try {
+    // Cek dulu apakah produk masih ada di database
+    const existing = await prisma.product.findUnique({ where: { id } });
+    
+    if (!existing) {
+      // Produk sudah dihapus dari DB (misalnya via Supabase dashboard)
+      // Langsung revalidate agar UI ter-update
+      revalidatePath("/admin/products");
+      return;
+    }
+
     await prisma.product.update({
       where: { id },
       data: { isActive: false }

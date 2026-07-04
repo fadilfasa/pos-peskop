@@ -3,6 +3,8 @@ import { getTodayExpenses } from "@/actions/expenses";
 import ExpensesClient from "./ExpensesClient";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default async function ExpensesPage() {
   const todayStock = await getTodayStock();
 

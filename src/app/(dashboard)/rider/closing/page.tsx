@@ -4,6 +4,8 @@ import { getTodayExpenses } from "@/actions/expenses";
 import ClosingClient from "./ClosingClient";
 import { redirect } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 export default async function ClosingPage() {
   const todayStock = await getTodayStock();
 

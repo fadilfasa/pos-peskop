@@ -2,6 +2,8 @@ import { getAdminDashboard } from "@/actions/dashboard";
 import { getAllFranchisesSimple } from "@/actions/franchises";
 import AdminDashboardClient from "./AdminDashboardClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage({
   searchParams,
 }: {

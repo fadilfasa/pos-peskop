@@ -2,6 +2,8 @@ import { getSalesReport } from "@/actions/dashboard";
 import { getRiders } from "@/actions/riders";
 import SalesReportClient from "@/app/(dashboard)/admin/reports/sales/SalesReportClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function FranchiseSalesReportPage() {
   const [report, riders] = await Promise.all([
     getSalesReport(),

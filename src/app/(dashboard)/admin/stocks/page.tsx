@@ -4,6 +4,8 @@ import { getLocalTodayUTC } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import AdminStocksClient from "./AdminStocksClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminStocksPage() {
   const [riders, products] = await Promise.all([
     getRiders(),

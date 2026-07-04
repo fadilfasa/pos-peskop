@@ -1,6 +1,8 @@
 import { getFranchiseDashboard } from "@/actions/dashboard";
 import FranchiseDashboardClient from "./FranchiseDashboardClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function FranchiseDashboardPage({
   searchParams,
 }: {
