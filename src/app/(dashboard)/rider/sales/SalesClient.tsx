@@ -13,6 +13,7 @@ import {
   Coffee,
   Clock,
   Trash2,
+  Tag,
 } from "lucide-react";
 import { formatCurrency, formatDateTime, getPaymentMethodLabel } from "@/lib/utils";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ type StockItem = {
 type Transaction = {
   id: string;
   totalAmount: number;
+  discountAmount: number;
   paymentMethod: string;
   createdAt: Date;
   items: {
@@ -57,6 +59,7 @@ export default function SalesClient({
     Record<string, { qty: number; price: number; name: string }>
   >({});
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "QRIS">("CASH");
+  const [discount, setDiscount] = useState(0);
 
   const addToCart = (item: StockItem) => {
     const current = cart[item.product.id]?.qty || 0;
@@ -98,10 +101,12 @@ export default function SalesClient({
   };
 
   const cartItems = Object.entries(cart).filter(([, v]) => v.qty > 0);
-  const totalAmount = cartItems.reduce(
+  const subtotal = cartItems.reduce(
     (sum, [, item]) => sum + item.qty * item.price,
     0
   );
+  const appliedDiscount = Math.min(discount, subtotal);
+  const totalAmount = subtotal - appliedDiscount;
 
   const handleSubmit = async () => {
     if (cartItems.length === 0) {
@@ -119,9 +124,11 @@ export default function SalesClient({
           qty: item.qty,
           price: item.price,
         })),
+        discountAmount: appliedDiscount,
       });
       toast.success("Transaksi berhasil dicatat!");
       setCart({});
+      setDiscount(0);
       router.refresh();
     } catch (err) {
       toast.error(
@@ -289,8 +296,61 @@ export default function SalesClient({
                 </div>
 
                 <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: "16px", marginBottom: "16px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "14px", color: "#374151" }}>Total</span>
+                  {/* Subtotal */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                    <span style={{ fontSize: "14px", color: "#6B7280" }}>Subtotal</span>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#374151" }}>
+                      {formatCurrency(subtotal)}
+                    </span>
+                  </div>
+
+                  {/* Discount Input */}
+                  <div style={{ marginBottom: "12px" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 500, color: "#374151", marginBottom: "6px" }}>
+                      <Tag style={{ width: "14px", height: "14px", color: "#D97706" }} />
+                      Diskon / Potongan
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", fontSize: "13px", color: "#9CA3AF", fontWeight: 500 }}>Rp</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max={subtotal}
+                        value={discount || ""}
+                        onChange={(e) => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}
+                        placeholder="0"
+                        style={{
+                          width: "100%",
+                          height: "40px",
+                          borderRadius: "10px",
+                          border: discount > 0 ? "1px solid #F59E0B" : "1px solid #E5E7EB",
+                          padding: "0 12px 0 32px",
+                          fontSize: "14px",
+                          color: "#111827",
+                          backgroundColor: discount > 0 ? "#FFFBEB" : "#fff",
+                          outline: "none",
+                          transition: "all 0.2s",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Discount line (if any) */}
+                  {appliedDiscount > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", padding: "6px 10px", borderRadius: "8px", backgroundColor: "#FFFBEB" }}>
+                      <span style={{ fontSize: "13px", color: "#D97706", fontWeight: 500, display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Tag style={{ width: "12px", height: "12px" }} />
+                        Diskon
+                      </span>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: "#D97706" }}>
+                        -{formatCurrency(appliedDiscount)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Total */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "10px", borderTop: "1px dashed #E5E7EB" }}>
+                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#374151" }}>Total Bayar</span>
                     <span style={{ fontSize: "20px", fontWeight: 700, color: "#DC2626" }}>
                       {formatCurrency(totalAmount)}
                     </span>
@@ -371,6 +431,11 @@ export default function SalesClient({
                   </p>
                   <p style={{ fontSize: "12px", color: "#9CA3AF", marginTop: "2px", margin: 0 }}>
                     {formatDateTime(t.createdAt)}
+                    {t.discountAmount > 0 && (
+                      <span style={{ marginLeft: "8px", color: "#D97706", fontWeight: 500 }}>
+                        Diskon {formatCurrency(t.discountAmount)}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

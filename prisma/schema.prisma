@@ -109,6 +109,7 @@ model Transaction {
   transactionDate DateTime      @default(now())
   paymentMethod   PaymentMethod
   totalAmount     Int
+  discountAmount  Int           @default(0)
   createdAt       DateTime      @default(now())
 
   rider      User              @relation(fields: [riderId], references: [id])

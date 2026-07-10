@@ -9,14 +9,17 @@ export async function createTransaction(data: {
   dailyStockId: string;
   paymentMethod: PaymentMethod;
   items: { productId: string; qty: number; price: number }[];
+  discountAmount?: number;
 }) {
   const session = await auth();
   if (!session) throw new Error("Unauthorized");
 
-  const totalAmount = data.items.reduce(
+  const subtotal = data.items.reduce(
     (sum, item) => sum + item.qty * item.price,
     0
   );
+  const discount = Math.min(data.discountAmount || 0, subtotal); // diskon tidak boleh melebihi subtotal
+  const totalAmount = subtotal - discount;
 
   // Use a transaction to ensure atomicity
   await prisma.$transaction(async (tx) => {
@@ -27,6 +30,7 @@ export async function createTransaction(data: {
         dailyStockId: data.dailyStockId,
         paymentMethod: data.paymentMethod,
         totalAmount,
+        discountAmount: discount,
         items: {
           create: data.items.map((item) => ({
             productId: item.productId,
