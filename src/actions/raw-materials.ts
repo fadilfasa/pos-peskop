@@ -18,8 +18,6 @@ export async function getRawMaterials() {
 export async function createRawMaterial(data: {
   merk: string;
   stockAwal: number;
-  tambahan: number;
-  terpakai: number;
 }) {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") {
@@ -34,7 +32,12 @@ export async function createRawMaterial(data: {
   }
 
   await prisma.rawMaterial.create({
-    data,
+    data: {
+      merk: data.merk,
+      stockAwal: data.stockAwal,
+      tambahan: 0,
+      terpakai: 0,
+    },
   });
 
   revalidatePath("/admin/raw-materials");
@@ -44,9 +47,6 @@ export async function updateRawMaterial(
   id: string,
   data: {
     merk: string;
-    stockAwal: number;
-    tambahan: number;
-    terpakai: number;
   }
 ) {
   const session = await auth();
@@ -64,7 +64,47 @@ export async function updateRawMaterial(
 
   await prisma.rawMaterial.update({
     where: { id },
-    data,
+    data: { merk: data.merk },
+  });
+
+  revalidatePath("/admin/raw-materials");
+}
+
+export async function adjustTambahan(id: string, amount: number) {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    throw new Error("Unauthorized");
+  }
+
+  if (amount <= 0) {
+    throw new Error("Jumlah harus lebih dari 0");
+  }
+
+  await prisma.rawMaterial.update({
+    where: { id },
+    data: {
+      tambahan: { increment: amount },
+    },
+  });
+
+  revalidatePath("/admin/raw-materials");
+}
+
+export async function adjustTerpakai(id: string, amount: number) {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    throw new Error("Unauthorized");
+  }
+
+  if (amount <= 0) {
+    throw new Error("Jumlah harus lebih dari 0");
+  }
+
+  await prisma.rawMaterial.update({
+    where: { id },
+    data: {
+      terpakai: { increment: amount },
+    },
   });
 
   revalidatePath("/admin/raw-materials");
